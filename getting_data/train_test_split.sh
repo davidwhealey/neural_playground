@@ -5,9 +5,9 @@ TARGET_DIRECTORY=$3
 
 mkdir -p $TARGET_DIRECTORY
 
-N=`cat $FILE | wc -l`
-TEST_N=`python -c "print int($TEST_FRACTION * $N)"`
+N=`cat $FILE | wc -c`
+TEST_N=`python -c "print(int($TEST_FRACTION * $N))"`
 TRAIN_N=$(($N-$TEST_N))
 
-head $FILE -n $TRAIN_N > $TARGET_DIRECTORY/train
-tail $FILE -n $TEST_N > $TARGET_DIRECTORY/test
+head $FILE -c $TRAIN_N > $TARGET_DIRECTORY/train
+tail $FILE -c $TEST_N > $TARGET_DIRECTORY/test

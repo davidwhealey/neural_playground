@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from utils import load_model, load_latest_model
 from text_generation import generate_and_print, encode
+import numpy as np
+np.seterr(divide='ignore')
 
 import argparse
 
@@ -17,14 +19,14 @@ parser.add_argument("--out_file", type=str, help="where to put the output")
 args = parser.parse_args()
 
 if args.load_latest:
-    print 'loading latest'
+    print('loading latest')
     model, _ = load_latest_model(args.model_path)
 else:
     model = load_model(args.model_path)
 
-encoded_text = encode(unicode(args.seed, encoding='utf8'))
+encoded_text = encode(args.seed)
 generated = generate_and_print(model, encoded_text, args.diversity, args.chars)
 
 if args.out_file is not None:
-    with open(args.out_file, 'wb') as out:
+    with open(args.out_file, 'w') as out:
         out.write(generated)

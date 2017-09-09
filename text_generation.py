@@ -7,11 +7,13 @@ import numpy as np
 import sys
 from unidecode import unidecode
 from utils import save_model, logger
+import time
 
 # we limit ourselves to the following chars.
 # Uppercase letters will be represented by prefixing them with a U
 # - a trick proposed by Zygmunt Zajac http://fastml.com/one-weird-trick-for-training-char-rnns/
 chars = '\n !"#$%&\'()*+,-./0123456789:;<=>?@[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~U'
+upper_char = 'U'
 charset = set(chars)
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
@@ -19,7 +21,7 @@ indices_char = dict((i, c) for i, c in enumerate(chars))
 
 def fix_char(c):
     if c.isupper():
-        return 'U' + c.lower()
+        return upper_char + c.lower()
     elif c in charset:
         return c
     elif c == '\t':
@@ -35,7 +37,7 @@ def encode(text):
 def decode(chars):
     upper = False
     for c in chars:
-        if c == 'U':
+        if c == upper_char:
             upper = True
         elif upper:
             upper = False
@@ -79,7 +81,9 @@ def make_lstm_trainset(path, seqlen=40, step=3, batch_size=1024):
 
 def generate_text_slices(path, seqlen=40, step=3):
     with open(path) as f:
-        text = f.read().decode("utf-8")
+        text = f.read()
+        if type(text) != str:
+            text = text.decode("utf-8")
 
     # limit the charset, encode uppercase etc
     text = encode(text)
@@ -95,7 +99,7 @@ def generate_text_slices(path, seqlen=40, step=3):
 
 def generate_arrays_from_file(path, seqlen=40, step=3, batch_size=10):
     slices = generate_text_slices(path, seqlen, step)
-    text_len, seed = slices.next()
+    text_len, seed = next(slices)
     samples = (text_len - seqlen + step - 1)/step
     yield samples, seed
 
@@ -103,7 +107,7 @@ def generate_arrays_from_file(path, seqlen=40, step=3, batch_size=10):
         X = np.zeros((batch_size, seqlen, len(chars)), dtype=np.bool)
         y = np.zeros((batch_size, len(chars)), dtype=np.bool)
         for i in range(batch_size):
-            sentence, next_char = slices.next()
+            sentence, next_char = next(slices)
             for t, char in enumerate(sentence):
                 X[i, t, char_indices[char]] = 1
             y[i, char_indices[next_char]] = 1
@@ -123,7 +127,8 @@ def sample(a, temperature=1.0):
 
 def generate(model, seed, diversity):
     _, maxlen, _ = model.input_shape
-    assert len(seed) >= maxlen
+    if len(seed) < maxlen:
+        seed = seed.rjust(maxlen)
     sentence = seed[len(seed)-maxlen: len(seed)]
     while True:
         x = np.zeros((1, maxlen, len(chars)))
@@ -147,11 +152,11 @@ def generate_and_print(model, seed, diversity, n):
 
     full_text = []
     for _ in range(n):
-        next_char = generator.next()
-        sys.stdout.write(next_char.encode("utf-8"))
+        next_char = next(generator)
+        sys.stdout.write(next_char)
         sys.stdout.flush()
         full_text.append(next_char)
-
+    full_text.append('\n')
     return ''.join(full_text)
 
 
@@ -160,16 +165,18 @@ def train_lstm(model, input_path, validation_path, save_dir, step=3, batch_size=
     _, seqlen, _ = model.input_shape
     train_gen = generate_arrays_from_file(input_path, seqlen=seqlen,
                                     step=step, batch_size=batch_size)
-    samples, seed = train_gen.next()
+    samples, seed = next(train_gen)
 
     logger.info('samples per epoch %s' % samples)
-    print 'samples per epoch %s' % samples
+    print('samples per epoch %s' % samples)
     last_epoch = model.metadata.get('epoch', 0)
+
+    t0 = time.time()
 
     for epoch in range(last_epoch + 1, last_epoch + iters + 1):
         val_gen = generate_arrays_from_file(
             validation_path, seqlen=seqlen, step=step, batch_size=batch_size)
-        val_samples, _ = val_gen.next()
+        val_samples, _ = next(val_gen)
 
         hist = model.fit_generator(
             train_gen,
@@ -183,11 +190,12 @@ def train_lstm(model, input_path, validation_path, save_dir, step=3, batch_size=
         model.metadata['loss'].append(loss)
         model.metadata['val_loss'].append(val_loss)
         model.metadata['epoch'] = epoch
+        model.metadata['time (m)'] = np.round((time.time()-t0)/60, decimals=2)
 
         message = 'loss = %.4f   val_loss = %.4f' % (loss, val_loss)
-        print message
+        print(message)
         logger.info(message)
-        print 'done fitting epoch %s' % epoch
+        print('done fitting epoch %s' % epoch)
         if epoch % save_every == 0:
             save_path = os.path.join(save_dir, ('epoch_%s' % ('%s' % epoch).zfill(5)))
             logger.info("done fitting epoch %s  Now saving mode to %s" % (epoch, save_path))

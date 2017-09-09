@@ -18,14 +18,15 @@ def save_model(model,  directory):
     model.save(os.path.join(directory, BULK))
 
     meta = model.metadata if hasattr(model, "metadata") else {}
-    with open(os.path.join(directory, METADATA), "wb") as out:
-        out.write(json.dumps(meta))
+    with open(os.path.join(directory, METADATA), "w") as out:
+        json.dump(meta, out)
+
 
 
 def load_model(directory):
     from keras.models import load_model as keras_load_model
     model = keras_load_model(os.path.join(directory, BULK))
-    with open(os.path.join(directory, METADATA), "rb") as conf:
+    with open(os.path.join(directory, METADATA), "r") as conf:
         meta = json.load(conf)
     
     model.metadata = meta

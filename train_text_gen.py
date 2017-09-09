@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import argparse
 import os
 
@@ -31,6 +30,7 @@ parser.add_argument("--max_epochs", type=int, default=10000,
                          'infinity)')
 parser.add_argument('--layers', type=int, default=2, help='how many lstm layers to stack, '
                                                           'must be positive')
+parser.add_argument('--save_every', type=int, default=1, help='save models every n epochs')
 args = parser.parse_args()
 
 
@@ -69,7 +69,7 @@ train_lstm(model=model,
            input_path=train_path,
            validation_path=test_path,
            save_dir=args.model_dir,
-           save_every=1,
+           save_every=args.save_every,
            step=args.step,
            batch_size=args.batch_size,
            iters=args.max_epochs)
