@@ -142,10 +142,11 @@ def generate(model, seed, diversity):
         sentence = sentence[1:] + next_char
 
 
-def generate_and_print(model, seed, diversity, n):
-    sys.stdout.write('generating with seed: \n')
-    sys.stdout.write(''.join(decode(seed)))
-    sys.stdout.write('\n=================================\n')
+def generate_and_print(model, seed, diversity, n, out=True):
+    if out:
+        sys.stdout.write('generating with seed: \n')
+        sys.stdout.write(''.join(decode(seed)))
+        sys.stdout.write('\n=================================\n')
 
     generator = decode(generate(model, seed, diversity))
     sys.stdout.write(''.join(decode(seed)))
