@@ -149,7 +149,8 @@ def generate_and_print(model, seed, diversity, n, out=True):
         sys.stdout.write('\n=================================\n')
 
     generator = decode(generate(model, seed, diversity))
-    sys.stdout.write(''.join(decode(seed)))
+    if out:
+        sys.stdout.write(''.join(decode(seed)))
 
     full_text = []
     for _ in range(n):
